@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Nifty 50 Tracker — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#000;--card:#1a1a1a;--card2:#141414;--border:#2a2a2a;
+  --green:#00e676;--green-dim:rgba(0,230,118,.15);
+  --red:#ff3355;--red-dim:rgba(255,51,85,.15);
+  --text:#fff;--muted:#888;--dim:#444;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:'Inter',-apple-system,sans-serif;overflow:hidden}
+button{border:none;background:none;cursor:pointer;font-family:inherit;color:inherit}
+input{font-family:inherit;color:inherit}
+::-webkit-scrollbar{width:0;height:0}
+
+/* ── Shell ── */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  max-width:430px;margin:0 auto;background:#000}
+
+/* ── Header ── */
+#header{
+  position:absolute;top:0;left:0;right:0;z-index:100;
+  background:linear-gradient(180deg,#0d0d0d 85%,rgba(0,0,0,0));
+  padding:14px 16px 12px;
+}
+.hrow1{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 6px var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.sym{font-size:13px;font-weight:700;letter-spacing:.08em;margin-left:8px}
+.clock{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hrow2{display:flex;align-items:flex-end;gap:12px;margin-bottom:12px}
+.price{font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.chg-wrap{display:flex;flex-direction:column;padding-bottom:4px}
+.chg{font-size:14px;font-weight:600;line-height:1.2}
+.chgpct{font-size:12px;font-weight:600;line-height:1.2}
+.hrow3{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.period-btn{display:flex;align-items:center;gap:4px;background:#252525;
+  border:1px solid #333;border-radius:8px;padding:4px 10px;
+  font-size:12px;font-weight:600;color:#fff;position:relative}
+.period-drop{position:absolute;top:110%;left:0;background:#252525;
+  border:1px solid #333;border-radius:8px;overflow:hidden;z-index:200;min-width:80px;display:none}
+.period-drop.open{display:block}
+.period-drop button{display:block;width:100%;text-align:left;padding:8px 12px;
+  font-size:12px;font-weight:600;cursor:pointer}
+.period-drop button:hover,.period-drop button.active{color:var(--green);background:rgba(0,230,118,.1)}
+.ohl{display:flex;align-items:center;gap:4px}
+.ohl-l{font-size:11px;color:#555;font-weight:600}
+.ohl-v{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ── Scroll area ── */
+#scroll{position:absolute;top:148px;bottom:64px;left:0;right:0;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding:12px 14px 8px}
+
+/* ── Bottom nav ── */
+#nav{position:absolute;bottom:0;left:0;right:0;height:64px;
+  background:#000;border-top:1px solid #1e1e1e;
+  display:flex;z-index:100}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;cursor:pointer;padding:6px 0;min-height:44px}
+.nav-btn svg{transition:color .15s}
+.nav-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;transition:color .15s}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:14px;padding:16px;
+  border:1px solid var(--border);margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-hdr{display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:700;letter-spacing:.02em}
+
+/* ── Status badge ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+  border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;flex-shrink:0}
+.badge.pos{background:var(--green-dim);color:var(--green)}
+.badge.neg{background:var(--red-dim);color:var(--red)}
+
+/* ── Signal banner ── */
+.sig-banner{border:1.5px solid;border-radius:10px;padding:10px 16px;
+  text-align:center;margin-bottom:14px}
+.sig-banner span{font-size:20px;font-weight:800;letter-spacing:.1em}
+
+/* ── Mini indicator grid ── */
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mini-cell{background:#111;border-radius:10px;padding:10px 12px;border:1px solid #222}
+.mini-lbl{font-size:10px;font-weight:700;color:#555;letter-spacing:.06em;margin-bottom:6px}
+.mini-row{display:flex;align-items:center;justify-content:space-between}
+
+/* ── Inner rows ── */
+.inner-row{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:#111;border-radius:8px;margin-top:10px}
+.inner-lbl{font-size:12px;color:var(--muted);font-weight:600}
+.inner-val{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.angle-tag{font-size:11px;font-weight:700;color:var(--green);background:rgba(0,230,118,.12);
+  padding:2px 8px;border-radius:6px}
+.dist{font-size:11px;font-weight:600}
+.near-tag{font-size:10px;background:rgba(0,230,118,.12);color:var(--green);
+  padding:1px 6px;border-radius:4px;margin-left:4px}
+
+/* ── Index row ── */
+.idx-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.idx-price{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.idx-chg{font-size:12px;font-weight:600;margin-top:3px}
+
+/* ── Stocks tab ── */
+.breadth-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.breadth-chip{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;text-align:center}
+.breadth-val{font-size:20px;font-weight:800}
+.breadth-lbl{font-size:11px;color:#555;margin-top:2px;font-weight:600;letter-spacing:.04em}
+.search-wrap{position:relative;margin-bottom:10px}
+.search-wrap span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#555;font-size:14px}
+#search{width:100%;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px 10px 36px;font-size:13px;color:#fff;outline:none}
+.pills{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.pill{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+  border:1px solid var(--border);background:var(--card);color:#666;transition:all .15s}
+.pill.active{border-color:var(--green);background:rgba(0,230,118,.12);color:var(--green)}
+.stocks-list{background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden}
+.stock-row{display:flex;align-items:center;padding:11px 14px;
+  border-bottom:1px solid #222;gap:10px}
+.stock-row:last-child{border-bottom:none}
+.stock-ticker{font-size:13px;font-weight:700}
+.stock-name{font-size:11px;color:#555;margin-top:2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.stock-price{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.stock-chg{font-size:11px;font-weight:600;text-align:right;margin-top:2px}
+
+/* ── Signals tab ── */
+.sig-card{background:var(--card);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;margin-bottom:12px}
+.sig-card:last-child{margin-bottom:0}
+.sig-card-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px 10px;border-bottom:1px solid #222}
+.sig-type{padding:3px 12px;border-radius:20px;font-size:12px;font-weight:800;
+  letter-spacing:.06em;border:1px solid}
+.sig-pattern{font-size:12px;color:#aaa}
+.sig-ts{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.sig-ts2{font-size:10px;color:#555;text-align:right}
+.sig-price-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid #222}
+.sig-entry-lbl{font-size:10px;color:#555;font-weight:600;letter-spacing:.04em;margin-bottom:3px}
+.sig-entry-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.result-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.lvl-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#222}
+.lvl-cell{background:#141414;padding:8px 14px}
+.lvl-name{font-size:10px;color:#555;font-weight:600;letter-spacing:.04em;margin-bottom:3px}
+.lvl-row{display:flex;align-items:baseline;gap:6px}
+.lvl-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.lvl-pts{font-size:10px;font-weight:600}
+.bank-align{display:flex;align-items:center;justify-content:space-between;padding:9px 14px}
+.bank-lbl{font-size:11px;color:#555;font-weight:600}
+.bank-val{font-size:11px;font-weight:700}
+
+/* ── Settings tab ── */
+.sec-hdr{display:flex;align-items:center;gap:8px;padding-left:2px;margin:14px 0 8px}
+.sec-hdr:first-child{margin-top:0}
+.sec-hdr-ico{font-size:14px}
+.sec-hdr-txt{font-size:13px;font-weight:700;color:#666;letter-spacing:.06em;text-transform:uppercase}
+.field-lbl{font-size:11px;color:#555;font-weight:600;letter-spacing:.04em;margin-bottom:6px}
+.field-input{width:100%;background:#111;border:1px solid var(--border);border-radius:8px;
+  padding:9px 36px 9px 12px;font-size:13px;color:#fff;outline:none}
+.field-wrap{position:relative}
+.field-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:14px;color:#555}
+.divider{height:1px;background:#222;margin:10px 0}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle-lbl{font-size:13px;font-weight:600;color:#ddd}
+.toggle-sub{font-size:11px;color:#555;margin-top:2px}
+.toggle{width:46px;height:26px;border-radius:13px;border:none;cursor:pointer;
+  position:relative;transition:background .2s;flex-shrink:0}
+.toggle-thumb{position:absolute;top:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:left .2s}
+.info-row{display:flex;align-items:center;justify-content:space-between}
+.info-lbl{font-size:13px;color:var(--muted)}
+.info-val{font-size:13px;font-weight:700}
+.lvl-edit-row{display:flex;align-items:center;gap:8px}
+.lvl-edit-input{background:#111;border:1px solid var(--border);border-radius:7px;
+  padding:7px 10px;font-size:12px;color:#ccc;outline:none}
+.lvl-edit-num{width:80px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+.lvl-del{width:28px;height:28px;border-radius:7px;background:rgba(255,51,85,.12);
+  border:1px solid rgba(255,51,85,.2);color:var(--red);font-size:14px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.add-lvl{width:100%;margin-top:12px;padding:8px;background:transparent;
+  border:1px dashed var(--border);border-radius:8px;font-size:12px;font-weight:600;
+  color:#555;cursor:pointer;letter-spacing:.04em}
+.save-btn{width:100%;padding:14px;background:rgba(0,230,118,.15);
+  border:1.5px solid var(--green);border-radius:12px;font-size:14px;font-weight:700;
+  color:var(--green);cursor:pointer;letter-spacing:.04em;transition:all .2s;margin-top:4px}
+.save-btn:active{background:rgba(0,230,118,.25)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="hrow1">
+      <div style="display:flex;align-items:center">
+        <span class="live-dot"></span>
+        <span class="sym">NIFTY 50</span>
+      </div>
+      <span class="clock" id="clock">--:--:-- AM</span>
+    </div>
+    <div class="hrow2">
+      <span class="price" id="price">24,650.35</span>
+      <div class="chg-wrap">
+        <span class="chg" id="chg" style="color:var(--green)">+2.58</span>
+        <span class="chgpct" id="chgpct" style="color:var(--green)">(+0.01%)</span>
+      </div>
+    </div>
+    <div class="hrow3">
+      <div class="period-btn" onclick="togglePeriod()">
+        <span id="period-lbl">Today</span>
+        <span style="font-size:9px;color:#888">▼</span>
+        <div class="period-drop" id="period-drop">
+          <button onclick="setPeriod('Today')" class="active">Today</button>
+          <button onclick="setPeriod('1W')">1W</button>
+          <button onclick="setPeriod('1M')">1M</button>
+          <button onclick="setPeriod('3M')">3M</button>
+          <button onclick="setPeriod('YTD')">YTD</button>
+        </div>
+      </div>
+      <div class="ohl"><span class="ohl-l">O</span><span class="ohl-v" style="color:#888">24,350.00</span></div>
+      <div class="ohl"><span class="ohl-l">H</span><span class="ohl-v" style="color:var(--green)">24,720.50</span></div>
+      <div class="ohl"><span class="ohl-l">L</span><span class="ohl-v" style="color:var(--red)">24,280.10</span></div>
+    </div>
+  </div>
+
+  <!-- SCROLL AREA -->
+  <div id="scroll"></div>
+
+  <!-- BOTTOM NAV -->
+  <div id="nav">
+    <button class="nav-btn" onclick="switchTab('nifty')" id="nav-nifty">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      <span class="nav-lbl">NIFTY 50</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('stocks')" id="nav-stocks">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polyline points="2,17 8,11 12,15 22,6"/><polyline points="18,6 22,6 22,10"/></svg>
+      <span class="nav-lbl">STOCKS</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('signals')" id="nav-signals">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/></svg>
+      <span class="nav-lbl">SIGNALS</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('settings')" id="nav-settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.07 7.07 0 0 0-1.62-.94l-.36-2.54A.484.484 0 0 0 13.92 2h-3.84a.484.484 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.47.47 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.01-1.58z"/></svg>
+      <span class="nav-lbl">SETTINGS</span>
+    </button>
+  </div>
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────────────────────
+const STOCKS = [
+  {t:'RELIANCE',n:'Reliance Industries',p:2842.50,c:1.24},
+  {t:'TCS',n:'Tata Consultancy Svcs',p:3920.00,c:-0.32},
+  {t:'HDFCBANK',n:'HDFC Bank',p:1725.30,c:0.87},
+  {t:'INFY',n:'Infosys',p:1612.45,c:-1.05},
+  {t:'ICICIBANK',n:'ICICI Bank',p:1284.60,c:1.53},
+  {t:'HINDUNILVR',n:'Hindustan Unilever',p:2240.00,c:0.21},
+  {t:'BHARTIARTL',n:'Bharti Airtel',p:1735.80,c:2.10},
+  {t:'KOTAKBANK',n:'Kotak Mahindra Bank',p:1920.25,c:-0.45},
+  {t:'LT',n:'Larsen & Toubro',p:3545.00,c:1.80},
+  {t:'SBIN',n:'State Bank of India',p:825.40,c:0.95},
+  {t:'AXISBANK',n:'Axis Bank',p:1195.70,c:1.20},
+  {t:'ITC',n:'ITC Limited',p:468.30,c:-0.15},
+  {t:'ASIANPAINT',n:'Asian Paints',p:2780.00,c:-0.60},
+  {t:'MARUTI',n:'Maruti Suzuki',p:12450.00,c:0.75},
+  {t:'SUNPHARMA',n:'Sun Pharmaceutical',p:1634.20,c:0.40},
+  {t:'WIPRO',n:'Wipro',p:482.00,c:-0.80},
+  {t:'TITAN',n:'Titan Company',p:3280.50,c:1.05},
+  {t:'BAJFINANCE',n:'Bajaj Finance',p:7150.00,c:2.20},
+  {t:'ULTRACEMCO',n:'UltraTech Cement',p:10820.00,c:0.30},
+  {t:'NESTLEIND',n:'Nestle India',p:2320.00,c:-0.10},
+  {t:'HCLTECH',n:'HCL Technologies',p:1520.00,c:-1.25},
+  {t:'ADANIPORTS',n:'Adani Ports & SEZ',p:1380.50,c:1.60},
+  {t:'POWERGRID',n:'Power Grid Corp',p:325.40,c:0.50},
+  {t:'NTPC',n:'NTPC Limited',p:368.20,c:0.70},
+  {t:'BAJAJFINSV',n:'Bajaj Finserv',p:1850.00,c:1.30},
+  {t:'JSWSTEEL',n:'JSW Steel',p:920.00,c:-0.90},
+  {t:'TATAMOTORS',n:'Tata Motors',p:972.30,c:2.50},
+  {t:'TATASTEEL',n:'Tata Steel',p:165.40,c:1.10},
+  {t:'TECHM',n:'Tech Mahindra',p:1580.00,c:-0.35},
+  {t:'ONGC',n:'ONGC',p:272.50,c:0.85},
+  {t:'COALINDIA',n:'Coal India',p:475.00,c:1.40},
+  {t:'GRASIM',n:'Grasim Industries',p:2640.00,c:0.60},
+  {t:'INDUSINDBK',n:'IndusInd Bank',p:1420.00,c:-0.75},
+  {t:'APOLLOHOSP',n:'Apollo Hospitals',p:6480.00,c:1.80},
+  {t:'CIPLA',n:'Cipla',p:1480.00,c:0.55},
+  {t:'EICHERMOT',n:'Eicher Motors',p:4580.00,c:0.95},
+  {t:'BPCL',n:'BPCL',p:318.50,c:1.05},
+  {t:'TATACONSUM',n:'Tata Consumer Products',p:1065.00,c:-0.20},
+  {t:'HEROMOTOCO',n:'Hero MotoCorp',p:4350.00,c:0.80},
+  {t:'BRITANNIA',n:'Britannia Industries',p:5420.00,c:-0.30},
+  {t:'HINDALCO',n:'Hindalco Industries',p:640.00,c:1.70},
+  {t:'DIVISLAB',n:"Divi's Laboratories",p:5280.00,c:0.40},
+  {t:'DRREDDY',n:"Dr. Reddy's Labs",p:6120.00,c:-0.55},
+  {t:'SBILIFE',n:'SBI Life Insurance',p:1680.00,c:0.65},
+  {t:'HDFCLIFE',n:'HDFC Life Insurance',p:690.00,c:0.45},
+  {t:'M&M',n:'Mahindra & Mahindra',p:2950.00,c:2.80},
+  {t:'BAJAJ-AUTO',n:'Bajaj Auto',p:9280.00,c:1.00},
+  {t:'SHRIRAMFIN',n:'Shriram Finance',p:2890.00,c:-0.40},
+  {t:'ADANIENT',n:'Adani Enterprises',p:2680.00,c:1.50},
+  {t:'BEL',n:'Bharat Electronics',p:285.00,c:2.10},
+]
+
+const SIGNALS = [
+  {type:'BUY',pattern:'Bullish Engulfing + EMA Cross',ts:'10:15',date:'03 May',
+   price:24480,sup:24200,res:24800,ssl:24180,bsl:24810,
+   sdist:280,rdist:320,ssldist:300,bsldist:330,aligned:true,result:'Active'},
+  {type:'BUY',pattern:'Inside Bar Breakout + VWAP Hold',ts:'09:30',date:'03 May',
+   price:24310,sup:24200,res:24700,ssl:24180,bsl:24720,
+   sdist:110,rdist:390,ssldist:130,bsldist:410,aligned:true,result:'Target Hit'},
+  {type:'SELL',pattern:'Bearish Marubozu + 9/15 Cross Down',ts:'14:45',date:'02 May',
+   price:24820,sup:24400,res:25000,ssl:24380,bsl:25020,
+   sdist:420,rdist:180,ssldist:440,bsldist:200,aligned:false,result:'Stopped Out'},
+  {type:'BUY',pattern:'Morning Star + Level Confluence',ts:'10:45',date:'02 May',
+   price:24190,sup:24100,res:24600,ssl:24080,bsl:24620,
+   sdist:90,rdist:410,ssldist:110,bsldist:430,aligned:true,result:'Target Hit'},
+]
+
+// ── Sparkline generator ──────────────────────────────────────────────────────
+function walk(base,n,v=.003){
+  let pts=[base]
+  for(let i=1;i<n;i++) pts.push(+(pts[i-1]+pts[i-1]*v*(Math.random()-.48)).toFixed(2))
+  return pts
+}
+function sparkSVG(data,w,h,pos){
+  if(!data||data.length<2)return''
+  const mn=Math.min(...data),mx=Math.max(...data),range=mx-mn||1
+  const pts=data.map((v,i)=>`${(i/(data.length-1)*w).toFixed(1)},${(h-(v-mn)/range*h).toFixed(1)}`).join(' ')
+  const c=pos?'#00e676':'#ff3355'
+  const last=pts.split(' ').pop().split(',')
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;flex-shrink:0"><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0]}" cy="${last[1]}" r="2.5" fill="${c}"/></svg>`
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let activeTab='nifty'
+let niftyPrice=24650.35, niftyOpen=24350
+let bankPrice=52480.15,  sensexPrice=81240.50
+let niftySpark=walk(24350,30), bankSpark=walk(52200,30,.004), sensexSpark=walk(81000,30,.002)
+let stockSort='All', stockSearch=''
+let toggles={push:true,sound:true,premarket:false}
+let niftyLvls=[{id:1,l:'Major Support',v:'24200'},{id:2,l:'Weekly Low',v:'24050'},{id:3,l:'Major Resist.',v:'24800'},{id:4,l:'Weekly High',v:'24950'}]
+let bankLvls=[{id:1,l:'Major Support',v:'52000'},{id:2,l:'Major Resist.',v:'53500'}]
+let nextId=10
+
+// ── Clock ────────────────────────────────────────────────────────────────────
+function updateClock(){
+  document.getElementById('clock').textContent=
+    new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+}
+setInterval(updateClock,1000); updateClock()
+
+// ── Live tick ────────────────────────────────────────────────────────────────
+function tick(p,v=.0004){return +(p+p*v*(Math.random()-.48)).toFixed(2)}
+setInterval(()=>{
+  niftyPrice=tick(niftyPrice)
+  bankPrice=tick(bankPrice,.0005)
+  sensexPrice=tick(sensexPrice,.0003)
+  niftySpark=[...niftySpark.slice(1),niftyPrice]
+  bankSpark=[...bankSpark.slice(1),bankPrice]
+  sensexSpark=[...sensexSpark.slice(1),sensexPrice]
+  if(activeTab==='nifty') renderNifty()
+},3000)
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(t){
+  activeTab=t
+  const tabs=['nifty','stocks','signals','settings']
+  tabs.forEach(id=>{
+    const btn=document.getElementById('nav-'+id)
+    const active=id===t
+    btn.style.color=active?'#fff':'#444'
+    btn.querySelector('.nav-lbl').style.color=active?'#00e676':'#444'
+  })
+  document.getElementById('scroll').scrollTop=0
+  if(t==='nifty')    renderNifty()
+  else if(t==='stocks')  renderStocks()
+  else if(t==='signals') renderSignals()
+  else if(t==='settings')renderSettings()
+}
+
+// ── Period dropdown ──────────────────────────────────────────────────────────
+function togglePeriod(){
+  document.getElementById('period-drop').classList.toggle('open')
+}
+function setPeriod(p){
+  document.getElementById('period-lbl').textContent=p
+  document.getElementById('period-drop').classList.remove('open')
+  document.querySelectorAll('.period-drop button').forEach(b=>b.classList.toggle('active',b.textContent===p))
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.period-btn')) document.getElementById('period-drop').classList.remove('open')
+})
+
+// ── Format helpers ───────────────────────────────────────────────────────────
+const fmt=(n)=>n.toLocaleString('en-IN',{minimumFractionDigits:2})
+const fmtS=(n,d=2)=>n.toLocaleString('en-IN',{minimumFractionDigits:d})
+
+// ═══════════════════════════════════════════════════════════════════════════ //
+//  TAB 1: NIFTY 50
+// ═══════════════════════════════════════════════════════════════════════════ //
+function renderNifty(){
+  const chg=+(niftyPrice-niftyOpen).toFixed(2)
+  const pct=+((chg/niftyOpen)*100).toFixed(2)
+  const pos=chg>=0, col=pos?'#00e676':'#ff3355'
+  document.getElementById('price').textContent=fmt(niftyPrice)
+  document.getElementById('chg').textContent=(pos?'+':'')+fmt(chg)
+  document.getElementById('chg').style.color=col
+  document.getElementById('chgpct').textContent=`(${pos?'+':''}${pct.toFixed(2)}%)`
+  document.getElementById('chgpct').style.color=col
+
+  const bankChg=+(bankPrice-52200).toFixed(2),bankPct=+((bankChg/52200)*100).toFixed(2),bankPos=bankChg>=0
+  const sensexChg=+(sensexPrice-81000).toFixed(2),sensexPct=+((sensexChg/81000)*100).toFixed(2),sensexPos=sensexChg>=0
+
+  document.getElementById('scroll').innerHTML=`
+  <!-- Signal Card -->
+  <div class="card">
+    <div class="sig-banner" style="border-color:#00e676;background:rgba(0,230,118,.08)">
+      <span style="color:#00e676">STRONG BUY</span>
+    </div>
+    <div class="mini-grid">
+      ${miniCell('9/15 EMA','Positive',niftySpark)}
+      ${miniCell('KEY LEVELS','Positive',niftySpark)}
+      ${miniCell('VWAP','Positive',niftySpark)}
+      ${miniCell('MARKET TREND','Negative',niftySpark,true)}
+    </div>
+  </div>
+
+  <!-- 9/15 EMA Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">9 / 15 EMA</span>${badge('Positive')}</div>
+    ${emaRow('9 EMA',24580.25,32)}
+    ${emaRow('15 EMA',24510.80,28)}
+  </div>
+
+  <!-- Key Levels Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">Key Levels</span>${badge('Positive')}</div>
+    ${lvlRow('Support',24200,450,'#00e676',true)}
+    ${lvlRow('Resistance',24800,150,'#ff3355',false)}
+  </div>
+
+  <!-- SSL / BSL Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">SSL / BSL</span>${badge('Positive')}</div>
+    ${lvlRow('SSL (Sell-Side Liq.)',24180,470,'#00e676',true)}
+    ${lvlRow('BSL (Buy-Side Liq.)',24810,160,'#ff3355',false)}
+  </div>
+
+  <!-- VWAP Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">VWAP</span>${badge('Positive')}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+      <div>
+        <div style="font-size:11px;color:#666;margin-bottom:4px">VWAP Level</div>
+        <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(24490.60)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#666;margin-bottom:4px">Distance</div>
+        <div style="font-size:16px;font-weight:600;color:#00e676">+${(niftyPrice-24490.60).toFixed(2)}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bank Nifty Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">Bank Nifty</span>${badge('Positive')}</div>
+    <div class="idx-row">
+      <div>
+        <div class="idx-price">${fmt(bankPrice)}</div>
+        <div class="idx-chg" style="color:${bankPos?'#00e676':'#ff3355'}">${bankPos?'+':''}${bankChg.toFixed(2)} (${bankPos?'+':''}${bankPct.toFixed(2)}%)</div>
+      </div>
+      ${sparkSVG(bankSpark,72,32,bankPos)}
+    </div>
+  </div>
+
+  <!-- Sensex Card -->
+  <div class="card">
+    <div class="card-hdr"><span class="card-title">Sensex</span>${badge('Positive')}</div>
+    <div class="idx-row">
+      <div>
+        <div class="idx-price">${fmt(sensexPrice)}</div>
+        <div class="idx-chg" style="color:${sensexPos?'#00e676':'#ff3355'}">${sensexPos?'+':''}${sensexChg.toFixed(2)} (${sensexPos?'+':''}${sensexPct.toFixed(2)}%)</div>
+      </div>
+      ${sparkSVG(sensexSpark,72,32,sensexPos)}
+    </div>
+  </div>
+  `
+}
+
+function badge(status){
+  const pos=status==='Positive'
+  return `<span class="badge ${pos?'pos':'neg'}">${pos?'▲':'▼'} ${status}</span>`
+}
+function miniCell(label,status,spark,rev=false){
+  const pos=status==='Positive'
+  return `<div class="mini-cell">
+    <div class="mini-lbl">${label}</div>
+    <div class="mini-row">${badge(status)}${sparkSVG(spark,44,22,rev?!pos:pos)}</div>
+  </div>`
+}
+function emaRow(label,value,angle){
+  return `<div class="inner-row">
+    <span class="inner-lbl">${label}</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="inner-val">${fmt(value)}</span>
+      <span class="angle-tag">${angle}° ↑</span>
+    </div>
+  </div>`
+}
+function lvlRow(label,value,dist,color,near){
+  return `<div class="inner-row">
+    <span class="inner-lbl">${label}</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="inner-val">${value.toLocaleString('en-IN')}</span>
+      <span class="dist" style="color:${color}">${dist}+ pts${near?'<span class="near-tag">near</span>':''}</span>
+    </div>
+  </div>`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════ //
+//  TAB 2: STOCKS
+// ═══════════════════════════════════════════════════════════════════════════ //
+function renderStocks(){
+  const gainers=STOCKS.filter(s=>s.c>=0).length
+  const losers=STOCKS.length-gainers
+  document.getElementById('scroll').innerHTML=`
+  <div class="breadth-grid">
+    <div class="breadth-chip"><div class="breadth-val" style="color:#888">${STOCKS.length}</div><div class="breadth-lbl">Total</div></div>
+    <div class="breadth-chip"><div class="breadth-val" style="color:#00e676">${gainers}</div><div class="breadth-lbl">Gainers</div></div>
+    <div class="breadth-chip"><div class="breadth-val" style="color:#ff3355">${losers}</div><div class="breadth-lbl">Losers</div></div>
+  </div>
+  <div class="search-wrap"><span>🔍</span><input id="search" placeholder="Search ticker or name…" value="${stockSearch}" oninput="onSearch(this.value)"/></div>
+  <div class="pills">
+    ${['All','Gainers','Losers','A→Z'].map(s=>`<button class="pill${stockSort===s?' active':''}" onclick="setSort('${s}')">${s}</button>`).join('')}
+  </div>
+  <div class="stocks-list">${stockRows()}</div>
+  `
+}
+function stockRows(){
+  let list=[...STOCKS]
+  if(stockSearch.trim()){const q=stockSearch.toLowerCase();list=list.filter(s=>s.t.toLowerCase().includes(q)||s.n.toLowerCase().includes(q))}
+  if(stockSort==='Gainers')list.sort((a,b)=>b.c-a.c)
+  else if(stockSort==='Losers')list.sort((a,b)=>a.c-b.c)
+  else if(stockSort==='A→Z')list.sort((a,b)=>a.t.localeCompare(b.t))
+  if(!list.length)return`<div style="padding:24px;text-align:center;color:#555;font-size:13px">No results for "${stockSearch}"</div>`
+  return list.map((s,i)=>{
+    const pos=s.c>=0, col=pos?'#00e676':'#ff3355'
+    const sp=walk(s.p,20)
+    return `<div class="stock-row">
+      <div style="flex:1;min-width:0"><div class="stock-ticker">${s.t}</div><div class="stock-name">${s.n}</div></div>
+      ${sparkSVG(sp,48,22,pos)}
+      <div><div class="stock-price">${fmtS(s.p)}</div><div class="stock-chg" style="color:${col}">${pos?'+':''}${s.c.toFixed(2)}%</div></div>
+    </div>`
+  }).join('')
+}
+function onSearch(v){stockSearch=v; document.querySelector('.stocks-list').innerHTML=stockRows()}
+function setSort(s){
+  stockSort=s
+  document.querySelectorAll('.pill').forEach(b=>b.classList.toggle('active',b.textContent===s))
+  document.querySelector('.stocks-list').innerHTML=stockRows()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════ //
+//  TAB 3: SIGNALS
+// ═══════════════════════════════════════════════════════════════════════════ //
+function renderSignals(){
+  const wins=SIGNALS.filter(s=>s.result==='Target Hit').length
+  const losses=SIGNALS.filter(s=>s.result==='Stopped Out').length
+  document.getElementById('scroll').innerHTML=`
+  <div class="breadth-grid" style="margin-bottom:12px">
+    <div class="breadth-chip"><div class="breadth-val" style="color:#888">${SIGNALS.length}</div><div class="breadth-lbl">Total</div></div>
+    <div class="breadth-chip"><div class="breadth-val" style="color:#00e676">${wins}</div><div class="breadth-lbl">Wins</div></div>
+    <div class="breadth-chip"><div class="breadth-val" style="color:#ff3355">${losses}</div><div class="breadth-lbl">Losses</div></div>
+  </div>
+  ${SIGNALS.map(sigCard).join('')}
+  `
+}
+function sigCard(s){
+  const buy=s.type==='BUY',tc=buy?'#00e676':'#ff3355',tbg=buy?'rgba(0,230,118,.08)':'rgba(255,51,85,.08)'
+  const RESULTS={Active:{c:'#00e676',bg:'rgba(0,230,118,.12)'},'Target Hit':{c:'#00e676',bg:'rgba(0,230,118,.12)'},'Stopped Out':{c:'#ff3355',bg:'rgba(255,51,85,.12)'}}
+  const r=RESULTS[s.result]||{c:'#888',bg:'rgba(136,136,136,.1)'}
+  return `<div class="sig-card" style="border-left:3px solid ${tc}">
+    <div class="sig-card-hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="sig-type" style="color:${tc};background:${tbg};border-color:${tc}">${s.type}</span>
+        <span class="sig-pattern">${s.pattern}</span>
+      </div>
+      <div><div class="sig-ts">${s.ts}</div><div class="sig-ts2">${s.date}</div></div>
+    </div>
+    <div class="sig-price-row">
+      <div><div class="sig-entry-lbl">ENTRY PRICE</div><div class="sig-entry-val">${s.price.toLocaleString('en-IN',{minimumFractionDigits:2})}</div></div>
+      <span class="result-badge" style="color:${r.c};background:${r.bg}">${s.result}</span>
+    </div>
+    <div class="lvl-grid">
+      ${lvlCell('Support',s.sup,s.sdist,'#00e676')}
+      ${lvlCell('Resistance',s.res,s.rdist,'#ff3355')}
+      ${lvlCell('SSL',s.ssl,s.ssldist,'#00e676')}
+      ${lvlCell('BSL',s.bsl,s.bsldist,'#ff3355')}
+    </div>
+    <div class="bank-align">
+      <span class="bank-lbl">Bank Nifty Aligned</span>
+      <span class="bank-val" style="color:${s.aligned?'#00e676':'#ff3355'}">${s.aligned?'✓ Yes':'✗ No'}</span>
+    </div>
+  </div>`
+}
+function lvlCell(name,value,dist,color){
+  return `<div class="lvl-cell">
+    <div class="lvl-name">${name.toUpperCase()}</div>
+    <div class="lvl-row"><span class="lvl-val">${value.toLocaleString('en-IN')}</span><span class="lvl-pts" style="color:${color}">${dist}pts</span></div>
+  </div>`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════ //
+//  TAB 4: SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════ //
+function renderSettings(){
+  document.getElementById('scroll').innerHTML=`
+  <div class="sec-hdr"><span class="sec-hdr-ico">🔑</span><span class="sec-hdr-txt">Dhan API</span></div>
+  <div class="card">
+    ${fieldRow('Client ID','e.g. 1100012345',false,'clientId')}
+    <div class="divider"></div>
+    ${fieldRow('Access Token','Bearer token from Dhan',true,'accessToken')}
+  </div>
+
+  <div class="sec-hdr"><span class="sec-hdr-ico">🔔</span><span class="sec-hdr-txt">Push Notifications</span></div>
+  <div class="card">
+    ${fieldRow('FCM Server Key','Firebase server key',true,'fcmKey')}
+    <div class="divider"></div>
+    ${toggleRow('Enable Push Alerts','Signal notifications to your phone','push')}
+    <div class="divider"></div>
+    ${toggleRow('Sound Alert','Play sound when signal fires','sound')}
+    <div class="divider"></div>
+    ${toggleRow('Pre-Market Alerts','Notify before 9:15 AM open','premarket')}
+  </div>
+
+  <div class="sec-hdr"><span class="sec-hdr-ico">⚙️</span><span class="sec-hdr-txt">Strategy</span></div>
+  <div class="card">
+    ${infoRow('EMA Fast','9')}
+    <div class="divider"></div>
+    ${infoRow('EMA Slow','15')}
+    <div class="divider"></div>
+    ${infoRow('Min Angle','30°')}
+    <div class="divider"></div>
+    ${infoRow('Candle Interval','5 min')}
+    <div class="divider"></div>
+    ${infoRow('Level Confluence','≤ 50 pts')}
+  </div>
+
+  <div class="sec-hdr"><span class="sec-hdr-ico">📊</span><span class="sec-hdr-txt">Nifty Key Levels</span></div>
+  <div class="card" id="nifty-lvls-card">
+    ${niftyLvls.map((l,i)=>(i?'<div class="divider"></div>':'')+lvlEdit(l,'nifty')).join('')}
+    <button class="add-lvl" onclick="addLevel('nifty')">+ Add Level</button>
+  </div>
+
+  <div class="sec-hdr"><span class="sec-hdr-ico">🏦</span><span class="sec-hdr-txt">Bank Nifty Key Levels</span></div>
+  <div class="card" id="bank-lvls-card">
+    ${bankLvls.map((l,i)=>(i?'<div class="divider"></div>':'')+lvlEdit(l,'bank')).join('')}
+    <button class="add-lvl" onclick="addLevel('bank')">+ Add Level</button>
+  </div>
+
+  <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+  <div style="height:8px"></div>
+  `
+}
+
+function fieldRow(label,ph,secret,id){
+  return `<div><div class="field-lbl">${label.toUpperCase()}</div>
+  <div class="field-wrap">
+    <input class="field-input" type="${secret?'password':'text'}" placeholder="${ph}" id="field-${id}"/>
+    ${secret?`<button class="field-eye" onclick="toggleEye('field-${id}',this)">👁</button>`:''}
+  </div></div>`
+}
+function toggleEye(id,btn){
+  const el=document.getElementById(id)
+  if(el.type==='password'){el.type='text';btn.textContent='🙈'}
+  else{el.type='password';btn.textContent='👁'}
+}
+function toggleRow(label,sub,key){
+  const on=toggles[key]
+  return `<div class="toggle-row">
+    <div><div class="toggle-lbl">${label}</div><div class="toggle-sub">${sub}</div></div>
+    <button class="toggle" onclick="flipToggle('${key}',this)" style="background:${on?'#00e676':'#2a2a2a'}">
+      <span class="toggle-thumb" style="left:${on?23:3}px"></span>
+    </button>
+  </div>`
+}
+function flipToggle(key,btn){
+  toggles[key]=!toggles[key]
+  const on=toggles[key]
+  btn.style.background=on?'#00e676':'#2a2a2a'
+  btn.querySelector('.toggle-thumb').style.left=(on?23:3)+'px'
+}
+function infoRow(label,value){
+  return `<div class="info-row"><span class="info-lbl">${label}</span><span class="info-val">${value}</span></div>`
+}
+function lvlEdit(l,group){
+  return `<div class="lvl-edit-row" id="lvl-${group}-${l.id}">
+    <input class="lvl-edit-input" style="flex:1" value="${l.l}" onchange="updateLevel('${group}',${l.id},'l',this.value)"/>
+    <input class="lvl-edit-input lvl-edit-num" value="${l.v}" placeholder="24200" onchange="updateLevel('${group}',${l.id},'v',this.value)"/>
+    <button class="lvl-del" onclick="removeLevel('${group}',${l.id})">×</button>
+  </div>`
+}
+function addLevel(group){
+  const id=++nextId,l={id,l:'New Level',v:''}
+  if(group==='nifty') niftyLvls.push(l); else bankLvls.push(l)
+  renderSettings()
+}
+function removeLevel(group,id){
+  if(group==='nifty') niftyLvls=niftyLvls.filter(l=>l.id!==id)
+  else bankLvls=bankLvls.filter(l=>l.id!==id)
+  renderSettings()
+}
+function updateLevel(group,id,field,val){
+  const arr=group==='nifty'?niftyLvls:bankLvls
+  const l=arr.find(x=>x.id===id); if(l) l[field]=val
+}
+function saveSettings(){
+  const btn=document.querySelector('.save-btn')
+  btn.textContent='✓ Saved!'
+  btn.style.background='rgba(0,230,118,.25)'
+  setTimeout(()=>{btn.textContent='Save Settings';btn.style.background='rgba(0,230,118,.15)'},2000)
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+switchTab('nifty')
+</script>
+</body>
+</html>

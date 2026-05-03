@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-Command npm -ErrorAction SilentlyContinue; $env:PATH -split \";\" | Where-Object { $_ -match \"node|npm\" })",
+      "Bash(/c/Users/dhanu/AppData/Local/Programs/Python/Python310/python --version)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm install *)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" run build)",
+      "Bash(cmd /c \"set PATH=C:\\\\Program Files\\\\nodejs;%PATH% && npm run build\")",
+      "Bash(cmd /c \"set PATH=C:\\\\Program Files\\\\nodejs;%PATH% && cd /d \\\\\"C:\\\\Dhanush\\\\claude\\\\Nifty Tracker\\\\\" && npm run build 2>&1\")",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; Set-Location \"C:\\\\Dhanush\\\\claude\\\\Nifty Tracker\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" run build 2>&1)"
+    ]
+  }
+}

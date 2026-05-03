@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview",
+      "runtimeExecutable": "C:/Users/dhanu/AppData/Local/Programs/Python/Python310/python",
+      "runtimeArgs": ["-m", "http.server", "3000", "--directory", "C:/Dhanush/claude/Nifty Tracker"],
+      "port": 3000
+    },
+    {
+      "name": "vite",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "C:\\Dhanush\\claude\\Nifty Tracker\\start-dev.cmd"],
+      "port": 5173
+    }
+  ]
+}

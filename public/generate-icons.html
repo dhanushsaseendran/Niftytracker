@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!-- Open this file in a browser, then right-click each canvas and "Save image as"
+     → save as icon-192.png and icon-512.png inside public/icons/ -->
+<html>
+<head><title>Generate PWA Icons</title></head>
+<body style="background:#111;display:flex;gap:20px;padding:20px;flex-wrap:wrap">
+<script>
+function drawIcon(size) {
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const ctx = c.getContext('2d')
+  const s = size
+
+  // Background
+  ctx.fillStyle = '#000'
+  ctx.beginPath()
+  ctx.roundRect(0, 0, s, s, s * 0.18)
+  ctx.fill()
+
+  // Chart bars (bull candle theme)
+  const barW = s * 0.08
+  const gap   = s * 0.06
+  const bars  = [0.55, 0.35, 0.70, 0.45, 0.80, 0.50, 0.90]
+  const startX = s * 0.10
+
+  bars.forEach((h, i) => {
+    const x = startX + i * (barW + gap)
+    const barH = h * s * 0.55
+    const y = s * 0.75 - barH
+
+    // Wick
+    ctx.strokeStyle = h > 0.6 ? '#00e676' : '#ff3355'
+    ctx.lineWidth = Math.max(1, s * 0.012)
+    ctx.beginPath()
+    ctx.moveTo(x + barW / 2, y - s * 0.06)
+    ctx.lineTo(x + barW / 2, y + barH + s * 0.06)
+    ctx.stroke()
+
+    // Body
+    ctx.fillStyle = h > 0.6 ? '#00e676' : '#ff3355'
+    ctx.fillRect(x, y, barW, barH)
+  })
+
+  // "N50" label
+  const fontSize = Math.round(s * 0.14)
+  ctx.font = `800 ${fontSize}px Inter, sans-serif`
+  ctx.fillStyle = '#ffffff'
+  ctx.textAlign = 'center'
+  ctx.fillText('N50', s / 2, s * 0.92)
+
+  document.body.appendChild(c)
+  const label = document.createElement('div')
+  label.style = 'color:#fff;font-family:sans-serif;text-align:center;font-size:12px;margin-top:4px'
+  label.textContent = `${size}×${size} → save as icon-${size}.png`
+  document.body.appendChild(label)
+}
+
+drawIcon(192)
+drawIcon(512)
+</script>
+</body>
+</html>
