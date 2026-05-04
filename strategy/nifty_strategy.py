@@ -194,7 +194,8 @@ def fetch_candles(ticker_key: str, _exchange: str = None) -> list[dict]:
     print(f"[Yahoo] Fetching {symbol} 5-min candles…")
 
     ticker = yf.Ticker(symbol)
-    df = ticker.history(period="1d", interval="5m")
+    # Fetch 5 days so EMA always has enough history (need 17+ candles)
+    df = ticker.history(period="5d", interval="5m")
 
     if df.empty:
         print(f"[Yahoo] No data returned for {symbol}")
@@ -286,6 +287,31 @@ def run_strategy():
 
     if len(nifty_candles) < EMA_SLOW + 2:
         print(f"[Strategy] Not enough candles ({len(nifty_candles)}). Need {EMA_SLOW + 2}.")
+        # Still write a minimal live-data.json so the app shows LIVE dot
+        if nifty_candles:
+            last = nifty_candles[-1]
+            minimal = {
+                "timestamp":  now_ist.isoformat(),
+                "marketOpen": True,
+                "price":      round(last["close"], 2),
+                "open":       round(nifty_candles[0]["open"], 2),
+                "high":       round(max(c["high"] for c in nifty_candles), 2),
+                "low":        round(min(c["low"]  for c in nifty_candles), 2),
+                "change":     round(last["close"] - nifty_candles[0]["open"], 2),
+                "changePct":  round((last["close"] - nifty_candles[0]["open"]) / nifty_candles[0]["open"] * 100, 2),
+                "signal":     "NEUTRAL",
+                "emaStatus":  "Neutral", "vwapStatus": "Neutral",
+                "keyLevelStatus": "Neutral", "trendStatus": "Neutral",
+                "ema9":  {"value": last["close"], "angle": 0},
+                "ema15": {"value": last["close"], "angle": 0},
+                "vwap":  {"value": last["close"], "status": "Neutral"},
+                "keyLevels": {"status": "Neutral"},
+                "bankNifty": {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+                "sensex":    {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+            }
+            with open("live-data.json", "w") as f:
+                json.dump(minimal, f, indent=2)
+            print("[Strategy] Wrote minimal live-data.json (warming up — not enough candles yet).")
         return
 
     # ── Compute Nifty indicators ──────────────────────────────────────────────
