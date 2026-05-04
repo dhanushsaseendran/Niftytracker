@@ -31,11 +31,16 @@ Required env vars (set as GitHub Actions secrets):
 import os
 import json
 import math
+import pathlib
 import requests
 from datetime import datetime, timezone, timedelta
 
 # ── IST timezone ─────────────────────────────────────────────────────────────
 IST = timezone(timedelta(hours=5, minutes=30))
+
+# ── Repo root (strategy/ is one level below repo root) ───────────────────────
+REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+LIVE_DATA_PATH = REPO_ROOT / "live-data.json"
 
 # ── Dhan API constants ────────────────────────────────────────────────────────
 DHAN_BASE        = "https://api.dhan.co"
@@ -296,9 +301,9 @@ def run_strategy():
                     "bankNifty":  {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
                     "sensex":     {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
                 }
-                with open("live-data.json", "w") as f:
+                with open(LIVE_DATA_PATH, "w") as f:
                     json.dump(snapshot, f, indent=2)
-                print(f"[Strategy] Wrote market-closed snapshot. Price: {price}")
+                print(f"[Strategy] Wrote market-closed snapshot → {LIVE_DATA_PATH}  Price: {price}")
             else:
                 print("[Strategy] yfinance returned empty — skipping snapshot write.")
         except Exception as e:
@@ -347,7 +352,7 @@ def run_strategy():
                 "bankNifty": {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
                 "sensex":    {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
             }
-            with open("live-data.json", "w") as f:
+            with open(LIVE_DATA_PATH, "w") as f:
                 json.dump(minimal, f, indent=2)
             print("[Strategy] Wrote minimal live-data.json (warming up — not enough candles yet).")
         return
@@ -602,7 +607,7 @@ def run_strategy():
     }
 
     try:
-        with open("live-data.json", "w") as f:
+        with open(LIVE_DATA_PATH, "w") as f:
             json.dump(live, f, indent=2)
         print(f"[Strategy] live-data.json written — price {price_now:.2f} | signal {display_signal}")
     except Exception as e:

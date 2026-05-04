@@ -55,17 +55,10 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          echo "=== Files written by strategy ==="
-          ls -la live-data.json signals.json 2>/dev/null || true
-          echo "=== Git status ==="
-          git status --short
-
-          git add live-data.json || true
-          git add signals.json   2>/dev/null || true
-
-          echo "=== Staged files ==="
-          git diff --cached --name-only
-
+          git status
+          git add live-data.json
+          git add signals.json 2>/dev/null || true
+          git status
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
