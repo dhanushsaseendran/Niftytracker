@@ -172,55 +172,46 @@ def vwap(candles: list[dict]) -> float:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Dhan API
+# Market data via Yahoo Finance (free, no subscription needed)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fetch_candles(security_id: str, exchange: str) -> list[dict]:
-    """Fetch last N 5-min candles from Dhan API."""
-    client_id    = os.environ["DHAN_CLIENT_ID"]
-    access_token = os.environ["DHAN_ACCESS_TOKEN"]
+# Yahoo Finance ticker symbols for Indian indices
+YAHOO_TICKERS = {
+    "NIFTY":     "^NSEI",
+    "BANKNIFTY": "^NSEBANK",
+    "SENSEX":    "^BSESN",
+}
 
-    now    = datetime.now(IST)
-    # Today or last trading day
-    from_dt = now.replace(hour=9, minute=15, second=0, microsecond=0)
-    to_dt   = now
+def fetch_candles(ticker_key: str, _exchange: str = None) -> list[dict]:
+    """
+    Fetch today's 5-min candles from Yahoo Finance.
+    ticker_key: one of 'NIFTY', 'BANKNIFTY', 'SENSEX'
+    _exchange: ignored (kept for API compatibility)
+    """
+    import yfinance as yf
 
-    headers = {
-        "access-token": access_token,
-        "client-id":    client_id,
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "securityId":   security_id,
-        "exchangeSegment": exchange,
-        "instrument":   "INDEX",
-        "interval":     INTERVAL,
-        "oi":           False,
-        "fromDate":     from_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "toDate":       to_dt.strftime("%Y-%m-%d %H:%M:%S"),
-    }
+    symbol = YAHOO_TICKERS.get(ticker_key, ticker_key)
+    print(f"[Yahoo] Fetching {symbol} 5-min candles…")
 
-    resp = requests.post(
-        f"{DHAN_BASE}/v2/charts/intraday",
-        json=payload, headers=headers, timeout=10
-    )
-    if resp.status_code == 401:
-        print(f"[Dhan] 401 Unauthorized — check DHAN_ACCESS_TOKEN secret. Response: {resp.text[:200]}")
-        raise SystemExit(1)
-    resp.raise_for_status()
-    data = resp.json()
+    ticker = yf.Ticker(symbol)
+    df = ticker.history(period="1d", interval="5m")
 
-    # Dhan returns parallel arrays
+    if df.empty:
+        print(f"[Yahoo] No data returned for {symbol}")
+        return []
+
     candles = []
-    for i, ts in enumerate(data.get("timestamp", [])):
+    for ts, row in df.iterrows():
         candles.append({
-            "timestamp": ts,
-            "open":   data["open"][i],
-            "high":   data["high"][i],
-            "low":    data["low"][i],
-            "close":  data["close"][i],
-            "volume": data.get("volume", [0] * len(data["timestamp"]))[i],
+            "timestamp": int(ts.timestamp()),
+            "open":   float(row["Open"]),
+            "high":   float(row["High"]),
+            "low":    float(row["Low"]),
+            "close":  float(row["Close"]),
+            "volume": float(row.get("Volume", 0)),
         })
+
+    print(f"[Yahoo] Got {len(candles)} candles for {symbol}")
     return candles
 
 
@@ -288,16 +279,10 @@ def run_strategy():
     nifty_levels_str = os.environ.get("NIFTY_LEVELS", default_levels)
     nifty_levels = [float(x.strip()) for x in nifty_levels_str.split(",") if x.strip()]
 
-    # ── Fetch candles for Nifty, Bank Nifty, Sensex ──────────────────────────
-    print("[Strategy] Fetching Nifty candles…")
-    nifty_candles = fetch_candles(NIFTY_SEC_ID, EXCHANGE_NSE)
-
-    print("[Strategy] Fetching Bank Nifty candles…")
-    bank_candles  = fetch_candles(BANKNIFTY_SEC_ID, EXCHANGE_NSE)
-
-    print("[Strategy] Fetching Sensex candles…")
-    sensex_sec    = os.environ.get("SENSEX_SEC_ID", SENSEX_SEC_ID)
-    sensex_candles = fetch_candles(sensex_sec, EXCHANGE_BSE)
+    # ── Fetch candles for Nifty, Bank Nifty, Sensex (via Yahoo Finance) ─────────
+    nifty_candles  = fetch_candles("NIFTY")
+    bank_candles   = fetch_candles("BANKNIFTY")
+    sensex_candles = fetch_candles("SENSEX")
 
     if len(nifty_candles) < EMA_SLOW + 2:
         print(f"[Strategy] Not enough candles ({len(nifty_candles)}). Need {EMA_SLOW + 2}.")
