@@ -265,35 +265,42 @@ def run_strategy():
     if not is_market_hours:
         reason = "Weekend" if is_weekend else "Outside market hours"
         print(f"[Strategy] {reason} — writing last-known price snapshot.")
-        # Still fetch last price from Yahoo and write live-data.json with marketOpen=False
         try:
             import yfinance as yf
-            df = yf.Ticker("^NSEI").history(period="1d", interval="1m")
+            # Use 5d period so we always get the last trading session's close
+            df = yf.Ticker("^NSEI").history(period="5d", interval="5m")
+            print(f"[Strategy] yfinance rows fetched: {len(df)}")
             if not df.empty:
-                last = df.iloc[-1]
+                last  = df.iloc[-1]
                 first = df.iloc[0]
+                price = round(float(last["Close"]), 2)
+                open_ = round(float(first["Open"]), 2)
                 snapshot = {
-                    "timestamp":  now_ist.isoformat(),
-                    "marketOpen": False,
-                    "price":      round(float(last["Close"]), 2),
-                    "open":       round(float(first["Open"]), 2),
-                    "high":       round(float(df["High"].max()), 2),
-                    "low":        round(float(df["Low"].min()), 2),
-                    "change":     round(float(last["Close"]) - round(float(first["Open"]), 2), 2),
-                    "changePct":  round((float(last["Close"]) - float(first["Open"])) / float(first["Open"]) * 100, 2),
-                    "signal":     "NEUTRAL",
-                    "emaStatus":  "Neutral", "vwapStatus": "Neutral",
-                    "keyLevelStatus": "Neutral", "trendStatus": "Neutral",
-                    "ema9":  {"value": round(float(last["Close"]), 2), "angle": 0},
-                    "ema15": {"value": round(float(last["Close"]), 2), "angle": 0},
-                    "vwap":  {"value": round(float(last["Close"]), 2), "status": "Neutral"},
-                    "keyLevels": {"status": "Neutral"},
-                    "bankNifty": {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
-                    "sensex":    {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+                    "timestamp":      now_ist.isoformat(),
+                    "marketOpen":     False,
+                    "price":          price,
+                    "open":           open_,
+                    "high":           round(float(df["High"].max()), 2),
+                    "low":            round(float(df["Low"].min()),  2),
+                    "change":         round(price - open_, 2),
+                    "changePct":      round((price - open_) / open_ * 100, 2),
+                    "signal":         "NEUTRAL",
+                    "emaStatus":      "Neutral",
+                    "vwapStatus":     "Neutral",
+                    "keyLevelStatus": "Neutral",
+                    "trendStatus":    "Neutral",
+                    "ema9":       {"value": price, "angle": 0},
+                    "ema15":      {"value": price, "angle": 0},
+                    "vwap":       {"value": price, "status": "Neutral"},
+                    "keyLevels":  {"status": "Neutral"},
+                    "bankNifty":  {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+                    "sensex":     {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
                 }
                 with open("live-data.json", "w") as f:
                     json.dump(snapshot, f, indent=2)
-                print(f"[Strategy] Wrote market-closed snapshot. Price: {snapshot['price']}")
+                print(f"[Strategy] Wrote market-closed snapshot. Price: {price}")
+            else:
+                print("[Strategy] yfinance returned empty — skipping snapshot write.")
         except Exception as e:
             print(f"[Strategy] Could not fetch snapshot: {e}")
         return
