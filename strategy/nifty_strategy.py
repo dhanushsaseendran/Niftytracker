@@ -204,6 +204,9 @@ def fetch_candles(security_id: str, exchange: str) -> list[dict]:
         f"{DHAN_BASE}/v2/charts/intraday",
         json=payload, headers=headers, timeout=10
     )
+    if resp.status_code == 401:
+        print(f"[Dhan] 401 Unauthorized — check DHAN_ACCESS_TOKEN secret. Response: {resp.text[:200]}")
+        raise SystemExit(1)
     resp.raise_for_status()
     data = resp.json()
 
