@@ -259,12 +259,43 @@ def run_strategy():
     # ── Market hours guard ────────────────────────────────────────────────────
     market_open  = now_ist.replace(hour=9,  minute=15, second=0, microsecond=0)
     market_close = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
-    if not (market_open <= now_ist <= market_close):
-        print("[Strategy] Outside market hours. Exiting.")
-        return
+    is_weekend   = now_ist.weekday() >= 5
+    is_market_hours = (market_open <= now_ist <= market_close) and not is_weekend
 
-    if now_ist.weekday() >= 5:   # Saturday / Sunday
-        print("[Strategy] Weekend. Exiting.")
+    if not is_market_hours:
+        reason = "Weekend" if is_weekend else "Outside market hours"
+        print(f"[Strategy] {reason} — writing last-known price snapshot.")
+        # Still fetch last price from Yahoo and write live-data.json with marketOpen=False
+        try:
+            import yfinance as yf
+            df = yf.Ticker("^NSEI").history(period="1d", interval="1m")
+            if not df.empty:
+                last = df.iloc[-1]
+                first = df.iloc[0]
+                snapshot = {
+                    "timestamp":  now_ist.isoformat(),
+                    "marketOpen": False,
+                    "price":      round(float(last["Close"]), 2),
+                    "open":       round(float(first["Open"]), 2),
+                    "high":       round(float(df["High"].max()), 2),
+                    "low":        round(float(df["Low"].min()), 2),
+                    "change":     round(float(last["Close"]) - round(float(first["Open"]), 2), 2),
+                    "changePct":  round((float(last["Close"]) - float(first["Open"])) / float(first["Open"]) * 100, 2),
+                    "signal":     "NEUTRAL",
+                    "emaStatus":  "Neutral", "vwapStatus": "Neutral",
+                    "keyLevelStatus": "Neutral", "trendStatus": "Neutral",
+                    "ema9":  {"value": round(float(last["Close"]), 2), "angle": 0},
+                    "ema15": {"value": round(float(last["Close"]), 2), "angle": 0},
+                    "vwap":  {"value": round(float(last["Close"]), 2), "status": "Neutral"},
+                    "keyLevels": {"status": "Neutral"},
+                    "bankNifty": {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+                    "sensex":    {"price": 0, "change": 0, "changePct": 0, "status": "Neutral"},
+                }
+                with open("live-data.json", "w") as f:
+                    json.dump(snapshot, f, indent=2)
+                print(f"[Strategy] Wrote market-closed snapshot. Price: {snapshot['price']}")
+        except Exception as e:
+            print(f"[Strategy] Could not fetch snapshot: {e}")
         return
 
     # ── Load key levels from env ──────────────────────────────────────────────
