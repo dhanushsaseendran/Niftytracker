@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const PERIODS = ['Today', '1W', '1M', '3M', 'YTD']
 
-export default function Header({ nifty, time, isLive = false }) {
+export default function Header({ nifty, time, isLive = false, dataSource = 'mock' }) {
   const [period, setPeriod] = useState('Today')
   const [showPeriods, setShowPeriods] = useState(false)
 
@@ -12,11 +12,15 @@ export default function Header({ nifty, time, isLive = false }) {
   const fmt = (n) => n.toLocaleString('en-IN', { minimumFractionDigits: 2 })
   const timeStr = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
-  // Dot: green + pulse = live data  |  amber + slow blink = mock/demo
-  const dotColor  = isLive ? '#00e676' : '#ffaa00'
-  const dotShadow = isLive ? '0 0 6px #00e676' : '0 0 6px #ffaa00'
+  // Dot colour by source
+  const dotColor  = dataSource === 'yahoo'  ? '#00e676'
+                  : dataSource === 'github' ? '#00aaff'
+                  : '#ffaa00'
+  const dotShadow = `0 0 6px ${dotColor}`
   const dotAnim   = isLive ? 'pulse 2s infinite' : 'pulse 3s infinite'
-  const dotLabel  = isLive ? 'LIVE' : 'DEMO'
+  const dotLabel  = dataSource === 'yahoo'  ? 'LIVE'
+                  : dataSource === 'github' ? 'GITHUB'
+                  : 'DEMO'
 
   return (
     <div style={{

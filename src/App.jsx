@@ -38,7 +38,7 @@ export default function App() {
     return () => window.removeEventListener('nifty_settings_changed', onSettingsChanged)
   }, [])
 
-  const { nifty, bankNifty, sensex, time, isLive } = useLiveData(githubUrl)
+  const { nifty, bankNifty, sensex, time, isLive, dataSource } = useLiveData(githubUrl, keyLevels)
 
   function navigate(page) {
     setSubPage(page)
@@ -81,7 +81,7 @@ export default function App() {
       maxWidth: 480, margin: '0 auto',
     }}>
       {/* Fixed header — always visible */}
-      <Header nifty={nifty} time={time} isLive={isLive} />
+      <Header nifty={nifty} time={time} isLive={isLive} dataSource={dataSource} />
 
       {/* Scrollable content */}
       <div
