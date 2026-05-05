@@ -236,8 +236,7 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
   // Keep latest refs to avoid stale closures
   const refs = useRef({ nifty: niftyData, bankNifty: bankNiftyData, sensex: sensexData, keyLevels, prevSignal: 'NEUTRAL' })
 
-  // Request notification permission once on mount
-  useEffect(() => { initNotifications() }, [])
+  // Note: notification permission is requested by the user via Settings tab button
   useEffect(() => { refs.current.nifty     = nifty     }, [nifty])
   useEffect(() => { refs.current.bankNifty = bankNifty }, [bankNifty])
   useEffect(() => { refs.current.sensex    = sensex    }, [sensex])
