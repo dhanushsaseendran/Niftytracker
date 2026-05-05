@@ -2,6 +2,46 @@ import { useState, useEffect, useRef } from 'react'
 import { niftyData, bankNiftyData, sensexData } from '../data/mockData.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Browser Notification helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return false
+  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'denied') return false
+  const result = await Notification.requestPermission()
+  return result === 'granted'
+}
+
+function fireNotification(signal, price) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+  const isBuy  = signal.includes('BUY')
+  const isSell = signal.includes('SELL')
+  if (!isBuy && !isSell) return
+
+  const emoji  = isBuy ? '🟢' : '🔴'
+  const title  = `${emoji} NIFTY ${signal}`
+  const body   = `Price: ${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+  const icon   = '/icons/icon-192.png'
+
+  // Try Service Worker first (works when PWA is in background)
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SHOW_NOTIFICATION', title, body, icon,
+    })
+  } else {
+    // Fallback: foreground notification
+    new Notification(title, { body, icon, badge: icon, vibrate: [200, 100, 200] })
+  }
+}
+
+// Request permission once on load (call from App or hook mount)
+export async function initNotifications() {
+  return requestNotifPermission()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 const YAHOO_BASE      = 'https://query1.finance.yahoo.com/v8/finance/chart'
@@ -194,7 +234,10 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
   const [dataSource, setDataSource] = useState('mock')  // 'yahoo' | 'github' | 'mock'
 
   // Keep latest refs to avoid stale closures
-  const refs = useRef({ nifty: niftyData, bankNifty: bankNiftyData, sensex: sensexData, keyLevels })
+  const refs = useRef({ nifty: niftyData, bankNifty: bankNiftyData, sensex: sensexData, keyLevels, prevSignal: 'NEUTRAL' })
+
+  // Request notification permission once on mount
+  useEffect(() => { initNotifications() }, [])
   useEffect(() => { refs.current.nifty     = nifty     }, [nifty])
   useEffect(() => { refs.current.bankNifty = bankNifty }, [bankNifty])
   useEffect(() => { refs.current.sensex    = sensex    }, [sensex])
@@ -226,6 +269,12 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
         setTime(new Date())
         setIsLive(true)
         setDataSource('yahoo')
+
+        // Fire browser notification on signal change
+        if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
+          fireNotification(n.signal, n.price)
+        }
+        refs.current.prevSignal = n.signal
       } catch (err) {
         if (cancelled) return
         if (!useProxy) {
@@ -244,6 +293,10 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
             const sx = computeIndex(sxRes.candles, sxRes.meta, r.sensex.sparkline)
             setNifty(n); setBankNifty(bn); setSensex(sx)
             setTime(new Date()); setIsLive(true); setDataSource('yahoo')
+            if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
+              fireNotification(n.signal, n.price)
+            }
+            refs.current.prevSignal = n.signal
             return
           } catch { /* fall through to GitHub */ }
         }

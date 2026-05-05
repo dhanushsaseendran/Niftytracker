@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw-custom.js',
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Nifty 50 Tracker',
@@ -24,13 +27,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.dhan\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'dhan-api-cache', networkTimeoutSeconds: 10 }
-          }
-        ]
       }
     })
   ],
