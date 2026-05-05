@@ -13,26 +13,46 @@ async function requestNotifPermission() {
   return result === 'granted'
 }
 
-function fireNotification(signal, price) {
+function sendNotif(title, body, tag = 'nifty-alert') {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const icon = '/Niftytracker/icons/icon-192.png'
 
-  const isBuy  = signal.includes('BUY')
-  const isSell = signal.includes('SELL')
-  if (!isBuy && !isSell) return
-
-  const emoji  = isBuy ? '🟢' : '🔴'
-  const title  = `${emoji} NIFTY ${signal}`
-  const body   = `Price: ${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-  const icon   = '/icons/icon-192.png'
-
-  // Try Service Worker first (works when PWA is in background)
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({
-      type: 'SHOW_NOTIFICATION', title, body, icon,
+      type: 'SHOW_NOTIFICATION', title, body, icon, tag,
     })
   } else {
-    // Fallback: foreground notification
-    new Notification(title, { body, icon, badge: icon, vibrate: [200, 100, 200] })
+    new Notification(title, { body, icon, badge: icon, tag, vibrate: [200, 100, 200] })
+  }
+}
+
+function fireSignalNotification(signal, price) {
+  if (!signal.includes('BUY') && !signal.includes('SELL')) return
+  const emoji = signal.includes('BUY') ? '🟢' : '🔴'
+  sendNotif(
+    `${emoji} NIFTY ${signal}`,
+    `Price: ${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+    'nifty-signal',
+  )
+}
+
+// ── Price-hit: fires when price crosses through a key level ──────────────────
+function checkLevelHits(prevPrice, newPrice, keyLevels) {
+  if (!prevPrice || prevPrice === newPrice) return
+  const lo = Math.min(prevPrice, newPrice)
+  const hi = Math.max(prevPrice, newPrice)
+
+  for (const lvl of keyLevels) {
+    const lv = parseFloat(lvl.value)
+    if (lv >= lo && lv <= hi) {
+      const dir   = newPrice > prevPrice ? '▲' : '▼'
+      const emoji = newPrice > prevPrice ? '🟢' : '🔴'
+      sendNotif(
+        `${emoji} NIFTY hit ${lv.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `${dir} Price: ${newPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `nifty-level-${lv}`,
+      )
+    }
   }
 }
 
@@ -234,7 +254,7 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
   const [dataSource, setDataSource] = useState('mock')  // 'yahoo' | 'github' | 'mock'
 
   // Keep latest refs to avoid stale closures
-  const refs = useRef({ nifty: niftyData, bankNifty: bankNiftyData, sensex: sensexData, keyLevels, prevSignal: 'NEUTRAL' })
+  const refs = useRef({ nifty: niftyData, bankNifty: bankNiftyData, sensex: sensexData, keyLevels, prevSignal: 'NEUTRAL', prevPrice: null })
 
   // Note: notification permission is requested by the user via Settings tab button
   useEffect(() => { refs.current.nifty     = nifty     }, [nifty])
@@ -269,11 +289,15 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
         setIsLive(true)
         setDataSource('yahoo')
 
-        // Fire browser notification on signal change
+        // Signal change notification
         if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
-          fireNotification(n.signal, n.price)
+          fireSignalNotification(n.signal, n.price)
         }
         refs.current.prevSignal = n.signal
+
+        // Key level hit notification
+        checkLevelHits(refs.current.prevPrice, n.price, refs.current.keyLevels)
+        refs.current.prevPrice = n.price
       } catch (err) {
         if (cancelled) return
         if (!useProxy) {
@@ -293,9 +317,11 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
             setNifty(n); setBankNifty(bn); setSensex(sx)
             setTime(new Date()); setIsLive(true); setDataSource('yahoo')
             if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
-              fireNotification(n.signal, n.price)
+              fireSignalNotification(n.signal, n.price)
             }
             refs.current.prevSignal = n.signal
+            checkLevelHits(refs.current.prevPrice, n.price, refs.current.keyLevels)
+            refs.current.prevPrice = n.price
             return
           } catch { /* fall through to GitHub */ }
         }
