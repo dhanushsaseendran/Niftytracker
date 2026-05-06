@@ -64,11 +64,18 @@ export async function initNotifications() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const YAHOO_BASE      = 'https://query1.finance.yahoo.com/v8/finance/chart'
-const CORS_PROXY      = 'https://corsproxy.io/?url='   // fallback if direct blocked
-const FETCH_INTERVAL  = 30_000   // 30 s between Yahoo fetches
-const MIN_ANGLE       = 30
-const LEVEL_ZONE      = 50
+const YAHOO_BASE     = 'https://query1.finance.yahoo.com/v8/finance/chart'
+const FETCH_INTERVAL = 30_000   // 30 s between Yahoo fetches
+const FETCH_TIMEOUT  = 8_000    // 8 s per attempt before giving up
+const MIN_ANGLE      = 30
+const LEVEL_ZONE     = 50
+
+// CORS proxies tried in order when direct request is blocked
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Technical indicator helpers (mirror of Python strategy)
@@ -109,22 +116,22 @@ function calcVWAP(candles) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Yahoo Finance fetch
+// Yahoo Finance fetch  (direct → proxy 1 → proxy 2 → proxy 3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function yahooFetch(symbol, proxy = false) {
-  const raw = `${YAHOO_BASE}/${encodeURIComponent(symbol)}?interval=5m&range=5d&includePrePost=false`
-  const url = proxy ? `${CORS_PROXY}${encodeURIComponent(raw)}` : raw
-  const res = await fetch(url, { cache: 'no-store' })
-  if (!res.ok) throw new Error(`Yahoo ${symbol} HTTP ${res.status}`)
-  const json  = await res.json()
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController()
+  const id   = setTimeout(() => ctrl.abort(), ms)
+  return fetch(url, { cache: 'no-store', signal: ctrl.signal })
+    .finally(() => clearTimeout(id))
+}
+
+function parseYahoo(json, symbol) {
   const result = json?.chart?.result?.[0]
   if (!result) throw new Error(`No chart data for ${symbol}`)
-
-  const ts    = result.timestamp || []
-  const q     = result.indicators?.quote?.[0] || {}
-  const meta  = result.meta || {}
-
+  const ts   = result.timestamp || []
+  const q    = result.indicators?.quote?.[0] || {}
+  const meta = result.meta || {}
   const candles = []
   for (let i = 0; i < ts.length; i++) {
     if (q.close?.[i] == null) continue
@@ -138,6 +145,32 @@ async function yahooFetch(symbol, proxy = false) {
     })
   }
   return { candles, meta }
+}
+
+async function yahooFetch(symbol) {
+  const raw = `${YAHOO_BASE}/${encodeURIComponent(symbol)}?interval=5m&range=5d&includePrePost=false`
+
+  // 1. Try direct (works in some networks / during market hours)
+  try {
+    const res = await fetchWithTimeout(raw, FETCH_TIMEOUT)
+    if (res.ok) return parseYahoo(await res.json(), symbol)
+  } catch { /* CORS or timeout — try proxies */ }
+
+  // 2. Try each CORS proxy in order
+  for (const makeUrl of CORS_PROXIES) {
+    try {
+      const res = await fetchWithTimeout(makeUrl(raw), FETCH_TIMEOUT)
+      if (!res.ok) continue
+      const text = await res.text()
+      // allorigins sometimes wraps in { contents: "..." }
+      let json
+      try { json = JSON.parse(text) } catch { continue }
+      if (json?.contents) { try { json = JSON.parse(json.contents) } catch { continue } }
+      return parseYahoo(json, symbol)
+    } catch { /* try next proxy */ }
+  }
+
+  throw new Error(`All fetch attempts failed for ${symbol}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,67 +298,33 @@ export function useLiveData(githubRawUrl, keyLevels = []) {
   // ── Yahoo Finance (primary) ─────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
-    let useProxy  = false
 
     async function fetchAll() {
       try {
         const [nRes, bnRes, sxRes] = await Promise.all([
-          yahooFetch('^NSEI',    useProxy),
-          yahooFetch('^NSEBANK', useProxy),
-          yahooFetch('^BSESN',   useProxy),
+          yahooFetch('^NSEI'),
+          yahooFetch('^NSEBANK'),
+          yahooFetch('^BSESN'),
         ])
-
         if (cancelled) return
 
-        const r = refs.current
+        const r  = refs.current
         const n  = computeNifty(nRes.candles,  nRes.meta,  r.keyLevels, r.nifty.sparkline)
         const bn = computeIndex(bnRes.candles, bnRes.meta, r.bankNifty.sparkline)
         const sx = computeIndex(sxRes.candles, sxRes.meta, r.sensex.sparkline)
 
-        setNifty(n)
-        setBankNifty(bn)
-        setSensex(sx)
-        setTime(new Date())
-        setIsLive(true)
-        setDataSource('yahoo')
+        setNifty(n); setBankNifty(bn); setSensex(sx)
+        setTime(new Date()); setIsLive(true); setDataSource('yahoo')
 
-        // Signal change notification
-        if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
+        if (n.signal !== 'NEUTRAL' && n.signal !== r.prevSignal)
           fireSignalNotification(n.signal, n.price)
-        }
-        refs.current.prevSignal = n.signal
+        r.prevSignal = n.signal
 
-        // Key level hit notification
-        checkLevelHits(refs.current.prevPrice, n.price, refs.current.keyLevels)
-        refs.current.prevPrice = n.price
+        checkLevelHits(r.prevPrice, n.price, r.keyLevels)
+        r.prevPrice = n.price
       } catch (err) {
         if (cancelled) return
-        if (!useProxy) {
-          // Retry once with CORS proxy
-          useProxy = true
-          try {
-            const [nRes, bnRes, sxRes] = await Promise.all([
-              yahooFetch('^NSEI',    true),
-              yahooFetch('^NSEBANK', true),
-              yahooFetch('^BSESN',   true),
-            ])
-            if (cancelled) return
-            const r = refs.current
-            const n  = computeNifty(nRes.candles,  nRes.meta,  r.keyLevels, r.nifty.sparkline)
-            const bn = computeIndex(bnRes.candles, bnRes.meta, r.bankNifty.sparkline)
-            const sx = computeIndex(sxRes.candles, sxRes.meta, r.sensex.sparkline)
-            setNifty(n); setBankNifty(bn); setSensex(sx)
-            setTime(new Date()); setIsLive(true); setDataSource('yahoo')
-            if (n.signal !== 'NEUTRAL' && n.signal !== refs.current.prevSignal) {
-              fireSignalNotification(n.signal, n.price)
-            }
-            refs.current.prevSignal = n.signal
-            checkLevelHits(refs.current.prevPrice, n.price, refs.current.keyLevels)
-            refs.current.prevPrice = n.price
-            return
-          } catch { /* fall through to GitHub */ }
-        }
-        console.warn('[Yahoo] fetch failed:', err.message, '— trying GitHub fallback')
+        console.warn('[Yahoo] all attempts failed:', err.message)
         setDataSource(prev => prev === 'yahoo' ? 'github' : prev)
       }
     }
