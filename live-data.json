@@ -1,27 +1,27 @@
 {
-  "timestamp": "2026-08-06T16:03:48.029078+05:30",
+  "timestamp": "2026-08-06T16:58:40.933846+05:30",
   "marketOpen": false,
-  "price": 24638.8,
+  "price": 24636.0,
   "open": 24359.8,
   "high": 24774.3,
   "low": 24299.7,
-  "change": 279.0,
-  "changePct": 1.15,
+  "change": 276.2,
+  "changePct": 1.13,
   "signal": "NEUTRAL",
   "emaStatus": "Neutral",
   "vwapStatus": "Neutral",
   "keyLevelStatus": "Neutral",
   "trendStatus": "Neutral",
   "ema9": {
-    "value": 24638.8,
+    "value": 24636.0,
     "angle": 0
   },
   "ema15": {
-    "value": 24638.8,
+    "value": 24636.0,
     "angle": 0
   },
   "vwap": {
-    "value": 24638.8,
+    "value": 24636.0,
     "status": "Neutral"
   },
   "keyLevels": {
