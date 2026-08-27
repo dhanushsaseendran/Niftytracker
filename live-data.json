@@ -1,48 +1,42 @@
 {
-  "timestamp": "2026-08-26T15:20:09.197096+05:30",
-  "marketOpen": true,
-  "price": 24276.9,
-  "open": 24225.2,
+  "timestamp": "2026-08-27T20:15:14.856042+05:30",
+  "marketOpen": false,
+  "price": 24090.85,
+  "open": 24282.0,
   "high": 24378.0,
-  "low": 24115.55,
-  "change": 51.7,
-  "changePct": 0.21,
-  "signal": "BUY",
-  "crossover": null,
-  "ema9": 24279.52,
-  "ema15": 24278.75,
-  "ema9Angle": -0.2,
-  "emaStatus": "Positive",
-  "vwap": 0,
-  "vwapStatus": "Positive",
-  "nearestSupport": null,
-  "nearestResistance": null,
-  "supportDist": null,
-  "resistanceDist": null,
-  "keyLevelStatus": "Negative",
-  "levelDist": Infinity,
-  "ssl": 24257.0,
-  "bsl": 24297.05,
-  "sslDist": 19.9,
-  "bslDist": 20.15,
-  "sslWarn": true,
-  "bslWarn": true,
+  "low": 24090.85,
+  "change": -191.15,
+  "changePct": -0.79,
+  "signal": "NEUTRAL",
+  "emaStatus": "Neutral",
+  "vwapStatus": "Neutral",
+  "keyLevelStatus": "Neutral",
+  "trendStatus": "Neutral",
+  "ema9": {
+    "value": 24090.85,
+    "angle": 0
+  },
+  "ema15": {
+    "value": 24090.85,
+    "angle": 0
+  },
+  "vwap": {
+    "value": 24090.85,
+    "status": "Neutral"
+  },
+  "keyLevels": {
+    "status": "Neutral"
+  },
   "bankNifty": {
-    "price": 57876.8,
-    "change": 309.75,
-    "changePct": 0.54,
-    "ema9": 57889.39,
-    "ema15": 57891.43,
-    "status": "Negative"
+    "price": 0,
+    "change": 0,
+    "changePct": 0,
+    "status": "Neutral"
   },
   "sensex": {
-    "price": 77641.7,
-    "change": 174.67,
-    "changePct": 0.23,
-    "ema9": 77643.05,
-    "ema15": 77637.07,
-    "status": "Positive"
-  },
-  "pattern": "Inside Bar Breakout (Bull)",
-  "trendStatus": "Neutral"
+    "price": 0,
+    "change": 0,
+    "changePct": 0,
+    "status": "Neutral"
+  }
 }
